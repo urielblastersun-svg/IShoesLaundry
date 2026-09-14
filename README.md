@@ -6,6 +6,7 @@ por establecimiento y da seguimiento puntual al calzado de cada cliente.
 
 Contexto de negocio y propuesta original en [`PropuestaProyecto.md`](./PropuestaProyecto.md).
 Plan de trabajo en [`PLAN.md`](./PLAN.md). Diseño en [`docs/fase0-diseno.md`](./docs/fase0-diseno.md).
+¿Quieres entender cada archivo y tecnología? Lee la [`docs/guia-tecnica.md`](./docs/guia-tecnica.md).
 
 ## Stack
 
@@ -22,6 +23,7 @@ apps/
   web/                  Frontend React PWA
 docs/
   fase0-diseno.md       Diseño (flujos, datos, contratos API)
+  guia-tecnica.md       Guía de aprendizaje: cómo funciona cada parte
 ```
 
 ## Requisitos
