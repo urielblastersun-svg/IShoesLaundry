@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  DESPACHADOR
+  TRANSPORTISTA
+  ADMIN
+}
+
+enum EstadoPedido {
+  NUEVO
+  EN_TRANSPORTE
+  EN_LAVADO
+  TERMINADO
+  ENTREGADO
+}
+
+enum TipoItem {
+  TENIS
+  GORRA
+  MOCHILA
+}
+
+enum CategoriaTenis {
+  BLANCO
+  COLOR
+  NINIO
+  PIEL_GAMUZA
+}
+
+enum TipoFoto {
+  ANGULO_1
+  ANGULO_2
+  ANGULO_3
+  ANGULO_4
+  GENERAL
+}
+
+enum AlmacenFotos {
+  LOCAL
+  GCS
+}
+
+enum TipoDescuento {
+  PORCENTAJE
+  MONTO
+}
+
+model Establecimiento {
+  id        String   @id @default(cuid())
+  nombre    String
+  direccion String
+  ciudad    String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios Usuario[]
+  pedidos  Pedido[]
+  gastos   Gasto[]
+  cortes   CorteCaja[]
+
+  @@map("establecimientos")
+}
+
+model Usuario {
+  id             String   @id @default(cuid())
+  nombre         String
+  telefono       String?
+  email          String   @unique
+  passwordHash   String
+  rol            Rol
+  activo         Boolean  @default(true)
+  establecimientoId String?
+  establecimiento   Establecimiento? @relation(fields: [establecimientoId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  pedidosCreados     Pedido[]       @relation("pedidosEmpleado")
+  historial          HistorialEstado[]
+  transportes        Transporte[]
+
+  @@map("usuarios")
+}
+
+model Cliente {
+  id        String   @id @default(cuid())
+  nombre    String
+  telefono  String   @unique
+  createdAt DateTime @default(now())
+
+  pedidos Pedido[]
+
+  @@map("clientes")
+}
+
+model Pedido {
+  id             String        @id @default(cuid())
+  folio          String        @unique
+  clienteId      String
+  cliente        Cliente       @relation(fields: [clienteId], references: [id])
+  establecimientoId String
+  establecimiento   Establecimiento @relation(fields: [establecimientoId], references: [id])
+  empleadoId     String
+  empleado       Usuario       @relation("pedidosEmpleado", fields: [empleadoId], references: [id])
+  estado         EstadoPedido  @default(NUEVO)
+  subtotal       Decimal       @db.Decimal(10, 2)
+  descuento      Decimal       @default(0) @db.Decimal(10, 2)
+  total          Decimal       @db.Decimal(10, 2)
+  notas          String?
+  qrRef          String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items       Item[]
+  fotos       Foto[]
+  historial   HistorialEstado[]
+  transporte  TransportePedido[]
+
+  @@index([establecimientoId])
+  @@index([estado])
+  @@index([clienteId])
+  @@map("pedidos")
+}
+
+model Item {
+  id        String    @id @default(cuid())
+  pedidoId  String
+  pedido    Pedido    @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  tipo      TipoItem
+  categoria CategoriaTenis?
+  marca     String
+  modelo    String
+  color     String
+  talla     String?
+  costo     Decimal   @db.Decimal(10, 2)
+
+  fotos Foto[]
+
+  @@index([pedidoId])
+  @@map("items")
+}
+
+model Foto {
+  id        String       @id @default(cuid())
+  pedidoId  String
+  pedido    Pedido       @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  itemId    String?
+  item      Item?        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipo      TipoFoto
+  url       String
+  almacenEn AlmacenFotos @default(LOCAL)
+  createdAt DateTime     @default(now())
+
+  @@index([pedidoId])
+  @@index([itemId])
+  @@map("fotos")
+}
+
+model HistorialEstado {
+  id        String        @id @default(cuid())
+  pedidoId  String
+  pedido    Pedido        @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  estado    EstadoPedido
+  usuarioId String
+  usuario   Usuario       @relation(fields: [usuarioId], references: [id])
+  timestamp DateTime      @default(now())
+
+  @@index([pedidoId])
+  @@map("historial_estados")
+}
+
+model Transporte {
+  id               String   @id @default(cuid())
+  transportistaId  String
+  transportista    Usuario  @relation(fields: [transportistaId], references: [id])
+  fechaRecoleccion DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  pedidos TransportePedido[]
+
+  @@map("transportes")
+}
+
+model TransportePedido {
+  transporteId String
+  transporte   Transporte @relation(fields: [transporteId], references: [id], onDelete: Cascade)
+  pedidoId     String
+  pedido       Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  recogido     Boolean    @default(false)
+
+  @@id([transporteId, pedidoId])
+  @@map("transporte_pedidos")
+}
+
+model Gasto {
+  id              String         @id @default(cuid())
+  establecimientoId String?
+  establecimiento   Establecimiento? @relation(fields: [establecimientoId], references: [id])
+  descripcion     String
+  monto           Decimal        @db.Decimal(10, 2)
+  categoria       String
+  fecha           DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+
+  @@index([fecha])
+  @@map("gastos")
+}
+
+model CorteCaja {
+  id              String         @id @default(cuid())
+  establecimientoId String
+  establecimiento   Establecimiento @relation(fields: [establecimientoId], references: [id])
+  fecha           DateTime       @default(now())
+  totalVentas     Decimal        @db.Decimal(10, 2)
+  totalGastos     Decimal        @default(0) @db.Decimal(10, 2)
+  diferencia      Decimal        @db.Decimal(10, 2)
+
+  @@index([fecha])
+  @@map("cortes_caja")
+}
+
+model EsquemaDescuento {
+  id        String         @id @default(cuid())
+  nombre    String
+  tipo      TipoDescuento
+  valor     Decimal        @db.Decimal(10, 2)
+  condicion String?
+  activo    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+
+  @@map("esquemas_descuento")
+}
